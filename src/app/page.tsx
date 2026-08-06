@@ -14,6 +14,13 @@ type Usage = {
 };
 type User = { name?: string; image?: string; dev?: boolean } | null | undefined;
 
+const SUGGESTIONS = [
+  "what is the target time-to-recover for a verified rollback in staging?",
+  "what is the escalation path for gpu quota increases?",
+  "what are the file size limits for multipart uploads on the OpenAI-compatible endpoints?",
+  "how long is the telemetry-driven runbook author certification valid?",
+];
+
 const MODELS = [
   { id: "", label: "HAIKU-4.5" },
   { id: "mistralai/mistral-small-3.2-24b-instruct", label: "MISTRAL-SMALL" },
@@ -58,8 +65,8 @@ export default function Chat() {
       .catch(() => setUser(null));
   }, []);
 
-  async function ask() {
-    const query = input.trim();
+  async function ask(preset?: string) {
+    const query = (preset ?? input).trim();
     if (!query || busy) return;
     setInput("");
     setBusy(true);
@@ -141,6 +148,8 @@ export default function Chat() {
       alert(`upload failed: ${await res.text()}`);
     }
   }
+
+  const sandboxEmpty = mode === "sandbox" && (usage ? usage.docs === 0 : uploads === 0);
 
   const tokensLeft = usage?.limits.tokens_per_day
     ? Math.max(0, usage.limits.tokens_per_day - usage.tokens_today)
@@ -271,17 +280,51 @@ export default function Chat() {
               <div className="absolute left-1/2 top-0 h-24 w-3 -translate-x-[150%] bg-vermilion" />
               <div className="absolute bottom-0 left-1/2 h-24 w-3 translate-x-[60%] bg-pressa" />
             </div>
-            <div className="rotate-[-4deg] bg-pressa px-3 py-1.5">
+            <div className={`rotate-[-4deg] px-3 py-1.5 ${sandboxEmpty ? "bg-vermilion" : "bg-pressa"}`}>
               <span className="dotted-label text-white">
-                ASK.THE.{mode === "playground" ? "CORPUS — 512,000 DOCUMENTS" : "SANDBOX — YOUR DOCUMENTS"}
+                {mode === "playground"
+                  ? "ASK.THE.CORPUS — 512,000 DOCUMENTS"
+                  : sandboxEmpty
+                    ? "UPLOAD.TO.ASK — 10 DOCS, 20 PAGES EACH"
+                    : "ASK.YOUR.DOCUMENTS"}
               </span>
             </div>
-            <p className="mt-5 text-xs leading-relaxed text-muted">
-              hybrid retrieval: BM25 + vectors, fused, reranked.
-              <br />
-              answers cite [n] — every claim traceable to its chunk.
-            </p>
-            <div className="dotted-label mt-4 flex justify-center gap-4 text-[0.55rem] text-muted">
+            {mode === "playground" ? (
+              <div className="mt-5 flex flex-col items-center gap-2">
+                <span className="dotted-label text-[0.55rem] text-muted">TRY.ONE</span>
+                {SUGGESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => ask(q)}
+                    disabled={busy}
+                    className="max-w-sm border border-hairline bg-paper px-3 py-1.5 text-left text-[0.72rem] leading-snug text-ink shadow-[2px_2px_0_0_#e2e2e2] hover:border-pressa focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa disabled:opacity-40"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            ) : sandboxEmpty ? (
+              <div className="mt-5">
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="dotted-label border-2 border-vermilion px-6 py-3 text-vermilion hover:bg-vermilion hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
+                >
+                  UPLOAD.FIRST.DOCUMENT
+                </button>
+                <p className="mt-4 text-xs leading-relaxed text-muted">
+                  markdown, pdf, docx, html, or plain text.
+                  <br />
+                  the chat unlocks after your first document lands.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-5 text-xs leading-relaxed text-muted">
+                your documents are chunked, embedded, and indexed.
+                <br />
+                answers cite [n] — every claim traceable to its chunk.
+              </p>
+            )}
+            <div className="dotted-label mt-5 flex justify-center gap-4 text-[0.55rem] text-muted">
               <span>├─ 1.98M CHUNKS ─┤</span>
               <span>├─ 88MS BM25 ─┤</span>
               <span>├─ 3MS HNSW ─┤</span>
@@ -352,14 +395,18 @@ export default function Chat() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && ask()}
-            placeholder={busy ? "RETRIEVING…" : "ask the documents…"}
-            disabled={busy}
+            onKeyDown={(e) => e.key === "Enter" && !sandboxEmpty && ask()}
+            placeholder={
+              busy ? "RETRIEVING…"
+                : sandboxEmpty ? "upload a document to unlock the chat…"
+                : "ask the documents…"
+            }
+            disabled={busy || sandboxEmpty}
             className="flex-1 border-b-2 border-hairline bg-transparent px-1 py-2 text-base outline-none sm:text-sm placeholder:text-muted focus:border-ink"
           />
           <button
-            onClick={ask}
-            disabled={busy}
+            onClick={() => ask()}
+            disabled={busy || sandboxEmpty}
             className="bg-vermilion px-5 font-display text-sm text-white hover:bg-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa disabled:opacity-40"
           >
             →
