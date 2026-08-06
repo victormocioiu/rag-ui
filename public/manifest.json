@@ -1,0 +1,17 @@
+{
+  "name": "hRAG",
+  "short_name": "hRAG",
+  "description": "Hybrid retrieval with receipts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fcfbf7",
+  "theme_color": "#fcfbf7",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

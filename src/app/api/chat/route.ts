@@ -2,12 +2,15 @@
 // headers or internal URLs; this route is the only door.
 import { NextRequest } from "next/server";
 import { ensureTenant, resolveTenant } from "@/lib/tenant";
+import { track } from "@/lib/track";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const resolved = await resolveTenant(body.mode ?? "playground");
   if (!resolved) return new Response("sign in first", { status: 401 });
   if (resolved.sandbox) await ensureTenant(resolved.tenant);
+  track(request, "ask", { mode: body.mode, model: body.model ?? "default",
+                          rerank: !!body.rerank }, undefined, resolved.tenant);
 
   const upstream = await fetch(`${process.env.RAG_API_URL}/chat`, {
     method: "POST",

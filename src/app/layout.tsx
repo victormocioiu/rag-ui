@@ -18,6 +18,15 @@ export const metadata: Metadata = {
   title: "hRAG — WELTSCHAU.DER.DOKUMENTE",
   description:
     "Hybrid retrieval over 512,000 documents — Postgres, BM25, vectors, a reranker, and receipts for every number.",
+  manifest: "/manifest.json",
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+};
+
+export const viewport = {
+  themeColor: "#fcfbf7",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
 };
 
 export default function RootLayout({
@@ -27,6 +36,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${display.variable} ${mono.variable} antialiased`}>
         {children}
+        {process.env.NEXT_PUBLIC_UMAMI_URL && (
+          <script
+            defer
+            src={`${process.env.NEXT_PUBLIC_UMAMI_URL}/script.js`}
+            data-website-id={process.env.NEXT_PUBLIC_UMAMI_ID}
+          />
+        )}
       </body>
     </html>
   );

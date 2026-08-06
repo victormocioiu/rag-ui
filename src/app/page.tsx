@@ -1,9 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { authClient } from "@/lib/auth-client";
 
 type Source = { n: number; heading_path: string; content: string };
 type Turn = { role: "user" | "assistant"; text: string; sources?: Source[] };
+type Usage = {
+  docs: number;
+  pages: number;
+  tokens_today: number;
+  limits: { docs: number; pages_per_doc: number; tokens_per_day: number | null };
+};
+type User = { name?: string; image?: string; dev?: boolean } | null | undefined;
 
 const MODELS = [
   { id: "", label: "HAIKU-4.5" },
@@ -19,7 +28,35 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploads, setUploads] = useState(0);
+  const [user, setUser] = useState<User>(undefined);
+  const [usage, setUsage] = useState<Usage | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  async function refreshUsage() {
+    const res = await fetch("/api/usage").catch(() => null);
+    if (res?.ok) {
+      const body = await res.json();
+      if (body.usage) {
+        setUsage(body.usage);
+        setUploads(body.usage.docs);
+      }
+    }
+  }
+
+  useEffect(() => {
+    fetch("/api/t", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "pageview" }),
+    }).catch(() => {});
+    fetch("/api/session")
+      .then((r) => r.json())
+      .then((b) => {
+        setUser(b.user);
+        if (b.user) refreshUsage();
+      })
+      .catch(() => setUser(null));
+  }, []);
 
   async function ask() {
     const query = input.trim();
@@ -79,6 +116,7 @@ export default function Chat() {
       });
     } finally {
       setBusy(false);
+      refreshUsage();
     }
   }
 
@@ -93,8 +131,8 @@ export default function Chat() {
     const res = await fetch("/api/upload", { method: "POST", body: form });
     if (res.ok) {
       const body = await res.json();
-      setUploads((n) => n + 1);
       setMode("sandbox");
+      refreshUsage();
       setTurns((t) => [...t, {
         role: "assistant",
         text: `INGESTED "${files[0].name}" — ${body.n_chunks} chunks, ${body.n_tokens_total} tokens. Ask about it.`,
@@ -102,6 +140,50 @@ export default function Chat() {
     } else {
       alert(`upload failed: ${await res.text()}`);
     }
+  }
+
+  const tokensLeft = usage?.limits.tokens_per_day
+    ? Math.max(0, usage.limits.tokens_per_day - usage.tokens_today)
+    : null;
+  const pagesLeft = usage
+    ? Math.max(0, usage.limits.docs * usage.limits.pages_per_doc - usage.pages)
+    : null;
+
+  if (user === null) {
+    return (
+      <main className="mx-auto flex h-dvh max-w-md flex-col items-center justify-center px-6 text-center font-mono">
+        <div className="relative mb-8 h-32 w-32" aria-hidden>
+          <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-ink" />
+          <div className="absolute left-1/2 top-0 h-20 w-2.5 -translate-x-[150%] bg-vermilion" />
+          <div className="absolute bottom-0 left-1/2 h-20 w-2.5 translate-x-[60%] bg-pressa" />
+        </div>
+        <h1 className="font-display text-4xl">hRAG</h1>
+        <div className="mt-3 rotate-[-3deg] bg-pressa px-3 py-1.5">
+          <span className="dotted-label text-white">SIGN.IN.TO.ASK — 512,000 DOCUMENTS</span>
+        </div>
+        <p className="mt-5 text-xs leading-relaxed text-muted">
+          One click. Your sandbox gets 10 documents, 20 pages each, and a
+          daily token budget — the meters stay visible the whole time.
+        </p>
+        <div className="mt-6 flex w-full flex-col gap-2">
+          <button
+            onClick={() => authClient.signIn.social({ provider: "google" })}
+            className="dotted-label border-2 border-ink py-3 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
+          >
+            CONTINUE.WITH.GOOGLE
+          </button>
+          <button
+            onClick={() => authClient.signIn.social({ provider: "github" })}
+            className="dotted-label border-2 border-ink py-3 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
+          >
+            CONTINUE.WITH.GITHUB
+          </button>
+        </div>
+        <p className="dotted-label mt-6 text-[0.55rem] text-muted">
+          POSTGRES · BM25 · HNSW · CROSS-ENCODER · RLS
+        </p>
+      </main>
+    );
   }
 
   return (
@@ -148,8 +230,14 @@ export default function Chat() {
               : "border-transparent text-muted hover:text-ink"
           }`}
         >
-          MY.SANDBOX — {uploads}/10
+          MY.SANDBOX — {usage ? `${usage.docs}/${usage.limits.docs}` : `${uploads}/10`}
         </button>
+        {usage && (
+          <span className="dotted-label hidden text-[0.55rem] text-muted md:inline">
+            {pagesLeft} PAGES LEFT
+            {tokensLeft !== null && ` · ${Math.round(tokensLeft / 1000)}K TOKENS TODAY`}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-3">
           <select
             value={model}
@@ -267,7 +355,7 @@ export default function Chat() {
             onKeyDown={(e) => e.key === "Enter" && ask()}
             placeholder={busy ? "RETRIEVING…" : "ask the documents…"}
             disabled={busy}
-            className="flex-1 border-b-2 border-hairline bg-transparent px-1 py-2 text-sm outline-none placeholder:text-muted focus:border-ink"
+            className="flex-1 border-b-2 border-hairline bg-transparent px-1 py-2 text-base outline-none sm:text-sm placeholder:text-muted focus:border-ink"
           />
           <button
             onClick={ask}
