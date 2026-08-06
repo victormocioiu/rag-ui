@@ -37,6 +37,7 @@ export default function Chat() {
   const [uploads, setUploads] = useState(0);
   const [user, setUser] = useState<User>(undefined);
   const [usage, setUsage] = useState<Usage | null>(null);
+  const [nudge, setNudge] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function refreshUsage() {
@@ -60,7 +61,10 @@ export default function Chat() {
       .then((r) => r.json())
       .then((b) => {
         setUser(b.user);
-        if (b.user) refreshUsage();
+        if (b.user) {
+          refreshUsage();
+          setNudge(true);
+        }
       })
       .catch(() => setUser(null));
   }, []);
@@ -160,7 +164,7 @@ export default function Chat() {
 
   if (user === null) {
     return (
-      <main className="mx-auto flex h-dvh max-w-md flex-col items-center justify-center px-6 text-center font-mono">
+      <main className="blueprint mx-auto flex h-dvh max-w-md flex-col items-center justify-center px-6 text-center font-mono">
         <div className="relative mb-8 h-32 w-32" aria-hidden>
           <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-ink" />
           <div className="absolute left-1/2 top-0 h-20 w-2.5 -translate-x-[150%] bg-vermilion" />
@@ -196,7 +200,7 @@ export default function Chat() {
   }
 
   return (
-    <main className="mx-auto flex h-dvh max-w-3xl flex-col px-4 font-mono">
+    <main className="blueprint mx-auto flex h-dvh max-w-3xl flex-col px-4 font-mono">
       {/* masthead */}
       <header className="border-b-2 border-ink pb-2 pt-4">
         <div className="flex items-end justify-between">
@@ -232,8 +236,10 @@ export default function Chat() {
           CORPUS.PLAYGROUND — 512K
         </button>
         <button
-          onClick={() => setMode("sandbox")}
+          onClick={() => { setMode("sandbox"); setNudge(false); }}
           className={`dotted-label border-b-2 pb-0.5 ${
+            nudge && mode !== "sandbox" ? "nudge-box" : ""
+          } ${
             mode === "sandbox"
               ? "border-vermilion text-ink"
               : "border-transparent text-muted hover:text-ink"
@@ -271,7 +277,7 @@ export default function Chat() {
       </nav>
 
       {/* conversation */}
-      <section className="blueprint flex-1 space-y-5 overflow-y-auto py-5">
+      <section className="flex-1 space-y-5 overflow-y-auto py-5">
         {turns.length === 0 && (
           <div className="relative mx-auto mt-10 max-w-md select-none text-center">
             {/* constructivist composition */}

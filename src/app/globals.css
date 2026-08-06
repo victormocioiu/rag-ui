@@ -44,6 +44,26 @@ body {
   font-weight: 600;
 }
 
+/* attention frame: a constructivist box that steps around the tab --
+   discrete jumps, not smooth easing; the era had no bezier curves */
+.nudge-box {
+  position: relative;
+}
+.nudge-box::after {
+  content: "";
+  position: absolute;
+  inset: -6px -8px;
+  border: 2px solid var(--red);
+  animation: nudge-jump 1.2s steps(1) infinite;
+  pointer-events: none;
+}
+@keyframes nudge-jump {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(2px, -2px); }
+  50%  { transform: translate(-2px, 2px); }
+  75%  { transform: translate(2px, 2px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
