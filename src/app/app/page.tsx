@@ -13,6 +13,7 @@ type Usage = {
   limits: { docs: number; pages_per_doc: number; tokens_per_day: number | null };
 };
 type User = { name?: string; image?: string; dev?: boolean } | null | undefined;
+type Mode = "playground" | "sandbox";
 
 const SUGGESTIONS = [
   "what is the target time-to-recover for a verified rollback in staging?",
@@ -28,10 +29,13 @@ const MODELS = [
 ];
 
 export default function Chat() {
-  const [mode, setMode] = useState<"playground" | "sandbox">("playground");
+  const [mode, setMode] = useState<Mode>("playground");
   const [model, setModel] = useState("");
   const [rerank, setRerank] = useState(false);
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [histories, setHistories] = useState<Record<Mode, Turn[]>>({
+    playground: [],
+    sandbox: [],
+  });
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploads, setUploads] = useState(0);
@@ -39,6 +43,21 @@ export default function Chat() {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [nudge, setNudge] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const restoredRef = useRef(false);
+
+  const turns = histories[mode];
+
+  function pushTurns(m: Mode, ...items: Turn[]) {
+    setHistories((h) => ({ ...h, [m]: [...h[m], ...items] }));
+  }
+
+  function patchLast(m: Mode, patch: (last: Turn) => Turn) {
+    setHistories((h) => {
+      const list = h[m];
+      if (!list.length) return h;
+      return { ...h, [m]: [...list.slice(0, -1), patch(list[list.length - 1])] };
+    });
+  }
 
   async function refreshUsage() {
     const res = await fetch("/api/usage").catch(() => null);
@@ -55,9 +74,17 @@ export default function Chat() {
   // cross-device history is a server-side feature for later.
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("hrag.turns.v1");
-      if (saved) setTurns(JSON.parse(saved));
+      const saved = localStorage.getItem("hrag.turns.v2");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setHistories({
+          playground: parsed.playground ?? [],
+          sandbox: parsed.sandbox ?? [],
+        });
+      }
+      localStorage.removeItem("hrag.turns.v1");
     } catch {}
+    restoredRef.current = true;
     fetch("/api/t", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -69,7 +96,9 @@ export default function Chat() {
         setUser(b.user);
         if (b.user) {
           refreshUsage();
-          setNudge(true);
+          try {
+            if (!localStorage.getItem("hrag.nudge.done")) setNudge(true);
+          } catch {}
         }
       })
       .catch(() => setUser(null));
@@ -78,9 +107,10 @@ export default function Chat() {
   async function ask(preset?: string) {
     const query = (preset ?? input).trim();
     if (!query || busy) return;
+    const m = mode;
     setInput("");
     setBusy(true);
-    setTurns((t) => [...t, { role: "user", text: query }, { role: "assistant", text: "" }]);
+    pushTurns(m, { role: "user", text: query }, { role: "assistant", text: "" });
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -104,33 +134,20 @@ export default function Chat() {
           if (!event || !data) continue;
           if (event === "sources") {
             const sources = JSON.parse(data) as Source[];
-            setTurns((t) => {
-              const copy = [...t];
-              copy[copy.length - 1] = { ...copy[copy.length - 1], sources };
-              return copy;
-            });
+            patchLast(m, (last) => ({ ...last, sources }));
           } else if (event === "delta") {
             const { text } = JSON.parse(data) as { text: string };
-            setTurns((t) => {
-              const copy = [...t];
-              const last = copy[copy.length - 1];
-              copy[copy.length - 1] = { ...last, text: last.text + text };
-              return copy;
-            });
+            patchLast(m, (last) => ({ ...last, text: last.text + text }));
           } else if (event === "error") {
             throw new Error(JSON.parse(data).detail);
           }
         }
       }
     } catch (err) {
-      setTurns((t) => {
-        const copy = [...t];
-        copy[copy.length - 1] = {
-          role: "assistant",
-          text: `something interrupted the stream (${err instanceof Error ? err.message : String(err)}). ask again — retrieval is stateless.`,
-        };
-        return copy;
-      });
+      patchLast(m, () => ({
+        role: "assistant",
+        text: `something interrupted the stream (${err instanceof Error ? err.message : String(err)}). ask again — retrieval is stateless.`,
+      }));
     } finally {
       setBusy(false);
       refreshUsage();
@@ -150,22 +167,24 @@ export default function Chat() {
       const body = await res.json();
       setMode("sandbox");
       refreshUsage();
-      setTurns((t) => [...t, {
+      pushTurns("sandbox", {
         role: "assistant",
         text: `INGESTED "${files[0].name}" — ${body.n_chunks} chunks, ${body.n_tokens_total} tokens. Ask about it.`,
-      }]);
+      });
     } else {
       alert(`upload failed: ${await res.text()}`);
     }
   }
 
   useEffect(() => {
+    if (!restoredRef.current) return;
     try {
-      if (turns.length) {
-        localStorage.setItem("hrag.turns.v1", JSON.stringify(turns.slice(-60)));
-      }
+      localStorage.setItem("hrag.turns.v2", JSON.stringify({
+        playground: histories.playground.slice(-60),
+        sandbox: histories.sandbox.slice(-60),
+      }));
     } catch {}
-  }, [turns]);
+  }, [histories]);
 
   const sandboxEmpty = mode === "sandbox" && (usage ? usage.docs === 0 : uploads === 0);
 
@@ -206,9 +225,17 @@ export default function Chat() {
             CONTINUE.WITH.GITHUB
           </button>
         </div>
-        <p className="dotted-label mt-6 text-[0.55rem] text-muted">
-          POSTGRES · BM25 · HNSW · CROSS-ENCODER · RLS
-        </p>
+        <a
+          href="https://edka.io"
+          target="_blank"
+          rel="noreferrer"
+          className="dotted-label mt-6 flex items-center gap-1.5 text-[0.55rem] text-muted hover:text-ink"
+        >
+          RUNS.ON
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/edka-logo.png" alt="edka" className="h-3.5 w-3.5" />
+          EDKA.IO
+        </a>
       </main>
     );
   }
@@ -227,22 +254,13 @@ export default function Chat() {
             <h1 className="font-display text-3xl leading-none tracking-tight">
               hRAG
             </h1>
-            <span className="dotted-label mb-0.5 hidden text-muted sm:inline">
-              WELTSCHAU.DER.DOKUMENTE
-            </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="dotted-label mb-0.5 hidden text-muted sm:block">
-              €116/MO · RECALL 69.7 · №7/14
-            </div>
             {turns.length > 0 && (
               <button
-                onClick={() => {
-                  setTurns([]);
-                  try { localStorage.removeItem("hrag.turns.v1"); } catch {}
-                }}
+                onClick={() => setHistories((h) => ({ ...h, [mode]: [] }))}
                 className="dotted-label mb-0.5 border border-hairline px-2 py-0.5 text-muted hover:border-ink hover:text-ink"
-                title="clear this browser's chat history"
+                title="clear this tab's chat history"
               >
                 CLEAR
               </button>
@@ -276,7 +294,11 @@ export default function Chat() {
           CORPUS.PLAYGROUND — 512K
         </button>
         <button
-          onClick={() => { setMode("sandbox"); setNudge(false); }}
+          onClick={() => {
+            setMode("sandbox");
+            setNudge(false);
+            try { localStorage.setItem("hrag.nudge.done", "1"); } catch {}
+          }}
           className={`dotted-label border-b-2 pb-0.5 ${
             nudge && mode !== "sandbox" ? "nudge-box" : ""
           } ${
@@ -445,10 +467,11 @@ export default function Chat() {
             placeholder={
               busy ? "RETRIEVING…"
                 : sandboxEmpty ? "upload a document to unlock the chat…"
-                : "ask the documents…"
+                : mode === "playground" ? "ask 512,000 documents anything…"
+                : "ask your documents…"
             }
             disabled={busy || sandboxEmpty}
-            className="flex-1 border-b-2 border-hairline bg-transparent px-1 py-2 text-base outline-none sm:text-sm placeholder:text-muted focus:border-ink"
+            className="flex-1 border-2 border-ink bg-paper px-3 py-2 text-base outline-none sm:text-sm placeholder:text-muted focus:border-pressa disabled:border-hairline"
           />
           <button
             onClick={() => ask()}
@@ -458,9 +481,18 @@ export default function Chat() {
             →
           </button>
         </div>
-        <div className="dotted-label mt-2 flex justify-between text-[0.55rem] text-muted">
-          <span>POSTGRES · BM25 · HNSW · CROSS-ENCODER · HAIKU</span>
-          <span>OFFSETDRUCK: HETZNER FALKENSTEIN</span>
+        <div className="mt-2 flex justify-end">
+          <a
+            href="https://edka.io"
+            target="_blank"
+            rel="noreferrer"
+            className="dotted-label flex items-center gap-1.5 text-[0.55rem] text-muted hover:text-ink"
+          >
+            RUNS.ON
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/edka-logo.png" alt="edka" className="h-3.5 w-3.5" />
+            EDKA.IO
+          </a>
         </div>
       </footer>
     </main>
