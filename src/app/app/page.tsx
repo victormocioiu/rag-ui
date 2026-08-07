@@ -121,7 +121,7 @@ export default function Chat() {
         const copy = [...t];
         copy[copy.length - 1] = {
           role: "assistant",
-          text: `retrieval failed: ${err instanceof Error ? err.message : String(err)}`,
+          text: `something interrupted the stream (${err instanceof Error ? err.message : String(err)}). ask again — retrieval is stateless.`,
         };
         return copy;
       });
@@ -164,7 +164,7 @@ export default function Chat() {
 
   if (user === null) {
     return (
-      <main className="blueprint mx-auto flex h-dvh max-w-md flex-col items-center justify-center px-6 text-center font-mono">
+      <main className="mx-auto flex h-dvh max-w-md flex-col items-center justify-center px-6 text-center font-mono">
         <div className="relative mb-8 h-32 w-32" aria-hidden>
           <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-ink" />
           <div className="absolute left-1/2 top-0 h-20 w-2.5 -translate-x-[150%] bg-vermilion" />
@@ -180,13 +180,13 @@ export default function Chat() {
         </p>
         <div className="mt-6 flex w-full flex-col gap-2">
           <button
-            onClick={() => authClient.signIn.social({ provider: "google" })}
+            onClick={() => authClient.signIn.social({ provider: "google", callbackURL: "/app" })}
             className="dotted-label border-2 border-ink py-3 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
           >
             CONTINUE.WITH.GOOGLE
           </button>
           <button
-            onClick={() => authClient.signIn.social({ provider: "github" })}
+            onClick={() => authClient.signIn.social({ provider: "github", callbackURL: "/app" })}
             className="dotted-label border-2 border-ink py-3 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
           >
             CONTINUE.WITH.GITHUB
@@ -200,7 +200,7 @@ export default function Chat() {
   }
 
   return (
-    <main className="blueprint mx-auto flex h-dvh max-w-3xl flex-col px-4 font-mono">
+    <main className="mx-auto flex h-dvh max-w-3xl flex-col px-4 font-mono">
       {/* masthead */}
       <header className="border-b-2 border-ink pb-2 pt-4">
         <div className="flex items-end justify-between">
@@ -217,8 +217,22 @@ export default function Chat() {
               WELTSCHAU.DER.DOKUMENTE
             </span>
           </div>
-          <div className="dotted-label mb-0.5 text-muted">
-            €116/MO · RECALL 69.7 · №7/14
+          <div className="flex items-center gap-3">
+            <div className="dotted-label mb-0.5 hidden text-muted sm:block">
+              €116/MO · RECALL 69.7 · №7/14
+            </div>
+            {user && !user.dev && (
+              <button
+                onClick={async () => {
+                  await authClient.signOut();
+                  window.location.href = "/";
+                }}
+                className="dotted-label mb-0.5 border border-hairline px-2 py-0.5 text-muted hover:border-vermilion hover:text-vermilion"
+                title={user.name ? `signed in as ${user.name}` : "sign out"}
+              >
+                SIGN.OUT
+              </button>
+            )}
           </div>
         </div>
       </header>
