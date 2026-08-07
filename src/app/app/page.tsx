@@ -51,7 +51,13 @@ export default function Chat() {
     }
   }
 
+  // chat history survives refresh: localStorage, per-browser, capped.
+  // cross-device history is a server-side feature for later.
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("hrag.turns.v1");
+      if (saved) setTurns(JSON.parse(saved));
+    } catch {}
     fetch("/api/t", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -153,6 +159,14 @@ export default function Chat() {
     }
   }
 
+  useEffect(() => {
+    try {
+      if (turns.length) {
+        localStorage.setItem("hrag.turns.v1", JSON.stringify(turns.slice(-60)));
+      }
+    } catch {}
+  }, [turns]);
+
   const sandboxEmpty = mode === "sandbox" && (usage ? usage.docs === 0 : uploads === 0);
 
   const tokensLeft = usage?.limits.tokens_per_day
@@ -221,6 +235,18 @@ export default function Chat() {
             <div className="dotted-label mb-0.5 hidden text-muted sm:block">
               €116/MO · RECALL 69.7 · №7/14
             </div>
+            {turns.length > 0 && (
+              <button
+                onClick={() => {
+                  setTurns([]);
+                  try { localStorage.removeItem("hrag.turns.v1"); } catch {}
+                }}
+                className="dotted-label mb-0.5 border border-hairline px-2 py-0.5 text-muted hover:border-ink hover:text-ink"
+                title="clear this browser's chat history"
+              >
+                CLEAR
+              </button>
+            )}
             {user && !user.dev && (
               <button
                 onClick={async () => {
