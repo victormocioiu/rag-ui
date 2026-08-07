@@ -36,13 +36,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${display.variable} ${mono.variable} antialiased`}>
         {children}
-        {process.env.NEXT_PUBLIC_UMAMI_URL && (
-          <script
-            defer
-            src={`${process.env.NEXT_PUBLIC_UMAMI_URL}/script.js`}
-            data-website-id={process.env.NEXT_PUBLIC_UMAMI_ID}
-          />
-        )}
+        <script
+          defer
+          src={`${process.env.NEXT_PUBLIC_UMAMI_URL ?? "/u"}/script.js`}
+          data-website-id={process.env.NEXT_PUBLIC_UMAMI_ID
+            ?? "be227628-8f36-4f79-adcd-f922b8333a34"}
+        />
       </body>
     </html>
   );
