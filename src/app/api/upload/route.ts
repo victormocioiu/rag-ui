@@ -1,6 +1,7 @@
 // Upload into the user's sandbox only -- the playground is read-only by
-// construction (this route refuses it). Quota enforcement's real home is
-// the platform; the UI's 10-doc cap is a courtesy, not a control.
+// construction (this route refuses it). Validation here is the polite
+// layer; rag-api's persist endpoint enforces the same quotas for real
+// (token-pages per doc, docs per tenant), so nothing rides on this.
 import { NextRequest } from "next/server";
 import { ensureTenant, resolveTenant } from "@/lib/tenant";
 import { track } from "@/lib/track";
@@ -12,6 +13,19 @@ export async function POST(request: NextRequest) {
   track(request, "upload", {}, undefined, resolved.tenant);
 
   const form = await request.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) {
+    return new Response("no file", { status: 422 });
+  }
+  if (!/\.(md|markdown|pdf|docx|html?|txt)$/i.test(file.name)) {
+    return new Response(
+      "unsupported type. markdown, pdf, docx, html, or plain text.",
+      { status: 415 },
+    );
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    return new Response("file too large. the limit is 8 MB.", { status: 413 });
+  }
   const upstream = await fetch(
     `${process.env.RAG_INGEST_URL}/ingest?include_text=false`,
     {

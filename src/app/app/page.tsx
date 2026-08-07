@@ -22,6 +22,9 @@ const SUGGESTIONS = [
   "how long is the telemetry-driven runbook author certification valid?",
 ];
 
+const ACCEPT = ".md,.markdown,.pdf,.docx,.html,.htm,.txt";
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
 const MODELS = [
   { id: "", label: "HAIKU-4.5" },
   { id: "mistralai/mistral-small-3.2-24b-instruct", label: "MISTRAL-SMALL" },
@@ -154,14 +157,35 @@ export default function Chat() {
     }
   }
 
+  function rejectUpload(name: string, reason: string) {
+    setMode("sandbox");
+    pushTurns("sandbox", {
+      role: "assistant",
+      text: `REJECTED "${name}" — ${reason}`,
+    });
+  }
+
   async function upload(files: FileList | null) {
     if (!files?.length) return;
-    if (uploads >= 10) {
-      alert("Sandbox holds 10 documents. That is the whole sandbox.");
+    const file = files[0];
+    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (!ACCEPT.split(",").includes(ext)) {
+      rejectUpload(file.name,
+        `unsupported type. markdown, pdf, docx, html, or plain text.`);
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      rejectUpload(file.name,
+        `${(file.size / 1048576).toFixed(1)} MB — the limit is 8 MB.`);
+      return;
+    }
+    if (usage && usage.docs >= usage.limits.docs) {
+      rejectUpload(file.name,
+        `sandbox is full (${usage.limits.docs} documents).`);
       return;
     }
     const form = new FormData();
-    form.append("file", files[0]);
+    form.append("file", file);
     const res = await fetch("/api/upload", { method: "POST", body: form });
     if (res.ok) {
       const body = await res.json();
@@ -169,10 +193,12 @@ export default function Chat() {
       refreshUsage();
       pushTurns("sandbox", {
         role: "assistant",
-        text: `INGESTED "${files[0].name}" — ${body.n_chunks} chunks, ${body.n_tokens_total} tokens. Ask about it.`,
+        text: `INGESTED "${file.name}" — ${body.n_chunks} chunks, ${body.n_tokens_total} tokens. Ask about it.`,
       });
     } else {
-      alert(`upload failed: ${await res.text()}`);
+      let detail = await res.text();
+      try { detail = JSON.parse(detail).detail ?? detail; } catch {}
+      rejectUpload(file.name, detail);
     }
   }
 
@@ -452,7 +478,16 @@ export default function Chat() {
       {/* input */}
       <footer className="border-t-2 border-ink py-3">
         <div className="flex gap-2">
-          <input ref={fileRef} type="file" hidden onChange={(e) => upload(e.target.files)} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept={ACCEPT}
+            hidden
+            onChange={(e) => {
+              upload(e.target.files);
+              e.target.value = "";
+            }}
+          />
           <button
             onClick={() => fileRef.current?.click()}
             title="Upload to your sandbox — 10 documents, 20 pages each"
