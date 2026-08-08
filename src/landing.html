@@ -952,7 +952,7 @@ footer.foot {
     <div class="section-head">
       <p class="section-num">00 · 01</p>
       <h2 class="section-title">The platform, answering</h2>
-      <p class="section-lede">Live screenshots — the ERB playground corpus, streamed answers, inspectable citations.</p>
+      <p class="section-lede">actual screenshots of the live thing… the 512K-document playground, streamed answers, citations you can open. no mockups — mockups would have been easier.</p>
       <!-- optional: <p class="section-versus">Replaces <b>Competitor A</b> · <b>Competitor B</b></p> -->
     </div>
 
@@ -1003,7 +1003,7 @@ footer.foot {
       </li>
       <li>
         <p class="name">Cross-encoder reranker<small>The right eight chunks.</small></p>
-        <p class="what">A fourth service reads query and chunk together and reorders the window. Worth +3.9 overall on the public benchmark, measured before it was built.</p>
+        <p class="what">A fourth service reads query and chunk together and reorders the window. Worth +3.9 on the public benchmark… and 16 seconds of latency on 2 vCPUs, which is why it ships as a checkbox and not a default. Both numbers are published.</p>
       </li>
       <li>
         <p class="name">Grounded answers<small>Refusal as a feature.</small></p>
@@ -1031,7 +1031,7 @@ footer.foot {
     <ol class="principles">
       
       <li><span class="n">1</span><span class="body"><b>Measure before building</b><span>The reranker cost $1 to prototype offline before a line of service code existed.</span></span></li>
-      <li><span class="n">2</span><span class="body"><b>Publish the noes</b><span>Multi-query rewriting, wider context, prompt-only fixes — measured, failed, documented next to the wins.</span></span></li>
+      <li><span class="n">2</span><span class="body"><b>Publish the noes</b><span>Multi-query rewriting, wider context, prompt-only fixes, HyDE — measured, failed, documented next to the wins. The noes cost real money; hiding them would waste it twice.</span></span></li>
       <li><span class="n">3</span><span class="body"><b>One database</b><span>Vectors, BM25, text, tenants, and usage all live in Postgres. One thing to operate, one thing to trust.</span></span></li>
       <li><span class="n">4</span><span class="body"><b>Small models, priced honestly</b><span>A 118M embedder and budget answerers, benchmarked against clouds that cost 100× more.</span></span></li>
 
@@ -1074,23 +1074,23 @@ footer.foot {
       
       <div class="faq-pair">
         <dt>What am I actually chatting with?</dt>
-        <dd>EnterpriseRAG-Bench: 512,000 simulated company documents — Slack threads, emails, wikis, tickets. The same corpus the platform is publicly scored on.</dd>
+        <dd>EnterpriseRAG-Bench: 512,000 simulated company documents — Slack threads, emails, wikis, tickets… the same corpus the platform is publicly scored on. what you see is exactly what the benchmark saw.</dd>
       </div>
       <div class="faq-pair">
         <dt>Can I bring my own documents?</dt>
-        <dd>Yes — sign in with Google or GitHub and you get a private sandbox: 10 documents, 20 pages each, a daily token budget, and meters that show exactly what you have left. Row-level security keeps it yours.</dd>
+        <dd>Yes — sign in with Google or GitHub and you get a private sandbox: 10 documents, 20 pages each, a daily token budget, and meters that show exactly what's left. A page is counted in tokens, so no… one huge .txt file is not "one page", we checked. Row-level security keeps your docs yours.</dd>
       </div>
       <div class="faq-pair">
         <dt>How good is it, honestly?</dt>
-        <dd>Judged by the benchmark's own harness: document recall 69.7 (6th of 14, ahead of Azure and Vertex), overall answer quality 7th and climbing. The full per-category tables are in the repo.</dd>
+        <dd>Judged by the benchmark's own harness: document recall 69.7 — 6th of 14, ahead of Azure and Vertex. Overall answer quality 7th… not first, and we say so out loud. The full per-category tables are in the repo.</dd>
       </div>
       <div class="faq-pair">
         <dt>Why should I trust these numbers?</dt>
-        <dd>The judge's own gold-set corrections confirmed our self-measured recall to 0.13 points, and every run's raw results are committed to the repo.</dd>
+        <dd>You shouldn't — not on our word alone. Which is why every run's raw results are committed to the repo, and the judge's own gold-set corrections landed within 0.13 points of our self-measured recall. Verify, then trust.</dd>
       </div>
       <div class="faq-pair">
         <dt>Can I run this myself?</dt>
-        <dd>That is the point. Three articles walk through every deployment click and every benchmark; the repos build the whole platform from scratch.</dd>
+        <dd>That is the whole point… the articles walk through every deployment click and every benchmark, and the repos build the platform from scratch. Copy freely, measure everything.</dd>
       </div>
 
     </dl>
