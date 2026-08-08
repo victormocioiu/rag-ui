@@ -509,13 +509,15 @@ export default function Chat() {
               upload(file);
             }}
           />
-          <button
-            onClick={() => fileRef.current?.click()}
-            title="Upload to your sandbox — 10 documents, 20 pages each"
-            className="dotted-label border border-ink px-3 text-ink hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
-          >
-            +DOC
-          </button>
+          {mode === "sandbox" && (
+            <button
+              onClick={() => fileRef.current?.click()}
+              title="Upload to your sandbox — 10 documents, 20 pages each"
+              className="dotted-label border border-ink px-3 text-ink hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
+            >
+              +DOC
+            </button>
+          )}
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
