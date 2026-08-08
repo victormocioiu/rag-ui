@@ -5,7 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
 type Source = { n: number; heading_path: string; content: string };
-type Turn = { role: "user" | "assistant"; text: string; sources?: Source[] };
+type Turn = {
+  role: "user" | "assistant";
+  text: string;
+  sources?: Source[];
+  free?: boolean; // answered by the $0 fallback after the budget ran out
+};
 type Usage = {
   docs: number;
   pages: number;
@@ -138,6 +143,9 @@ export default function Chat() {
           if (event === "sources") {
             const sources = JSON.parse(data) as Source[];
             patchLast(m, (last) => ({ ...last, sources }));
+          } else if (event === "model") {
+            const { free } = JSON.parse(data) as { free?: boolean };
+            if (free) patchLast(m, (last) => ({ ...last, free: true }));
           } else if (event === "delta") {
             const { text } = JSON.parse(data) as { text: string };
             patchLast(m, (last) => ({ ...last, text: last.text + text }));
@@ -433,7 +441,9 @@ export default function Chat() {
                   turn.role === "user" ? "text-right text-vermilion" : "text-pressa"
                 }`}
               >
-                {turn.role === "user" ? "QUERY" : "ANSWER"}
+                {turn.role === "user" ? "QUERY"
+                  : turn.free ? "ANSWER — FREE.MODEL (daily budget spent)"
+                  : "ANSWER"}
               </div>
               <div
                 className={`whitespace-pre-wrap border bg-paper px-3 py-2.5 text-[0.83rem] leading-relaxed ${
