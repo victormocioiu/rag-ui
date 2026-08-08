@@ -50,7 +50,10 @@ export default function Chat() {
   const [user, setUser] = useState<User>(undefined);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [nudge, setNudge] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
   const restoredRef = useRef(false);
 
   const turns = histories[mode];
@@ -178,40 +181,65 @@ export default function Chat() {
     });
   }
 
-  async function upload(file: File | undefined) {
-    if (!file) return;
-    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-    if (!ACCEPT.split(",").includes(ext)) {
-      rejectUpload(file.name,
-        `unsupported type. markdown, pdf, docx, html, or plain text.`);
-      return;
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      rejectUpload(file.name,
-        `${(file.size / 1048576).toFixed(1)} MB — the limit is 8 MB.`);
-      return;
-    }
-    if (usage && usage.docs >= usage.limits.docs) {
-      rejectUpload(file.name,
-        `sandbox is full (${usage.limits.docs} documents).`);
-      return;
-    }
+  async function uploadOne(file: File): Promise<boolean> {
     const form = new FormData();
     form.append("file", file);
     const res = await fetch("/api/upload", { method: "POST", body: form });
     if (res.ok) {
       const body = await res.json();
-      setMode("sandbox");
-      refreshUsage();
       pushTurns("sandbox", {
         role: "assistant",
-        text: `INGESTED "${file.name}" — ${body.n_chunks} chunks, ${body.n_tokens_total} tokens. Ask about it.`,
+        text: `INGESTED "${file.name}" — ${body.n_chunks} chunks, ${body.n_tokens_total} tokens.`,
       });
-    } else {
-      let detail = await res.text();
-      try { detail = JSON.parse(detail).detail ?? detail; } catch {}
-      rejectUpload(file.name, detail);
+      return true;
     }
+    let detail = await res.text();
+    try { detail = JSON.parse(detail).detail ?? detail; } catch {}
+    rejectUpload(file.name, detail);
+    return false;
+  }
+
+  // Accepts one or many files. Uploads sequentially so per-doc quota
+  // accounting stays correct (the sandbox cap is server-enforced) and
+  // each file gets its own in-chat verdict. Client-side filtering here
+  // is the polite layer; rag-api's persist endpoint is the real gate.
+  async function upload(files: FileList | File[] | null) {
+    const list = files ? Array.from(files) : [];
+    if (!list.length || uploading) return;
+    setMode("sandbox");
+    setUploading(true);
+    try {
+      let slots = usage ? Math.max(0, usage.limits.docs - usage.docs) : 10;
+      for (const file of list) {
+        const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+        if (!ACCEPT.split(",").includes(ext)) {
+          rejectUpload(file.name,
+            "unsupported type. markdown, pdf, docx, html, or plain text.");
+          continue;
+        }
+        if (file.size > MAX_UPLOAD_BYTES) {
+          rejectUpload(file.name,
+            `${(file.size / 1048576).toFixed(1)} MB — the limit is 8 MB.`);
+          continue;
+        }
+        if (slots <= 0) {
+          rejectUpload(file.name, "sandbox is full (10 documents).");
+          continue;
+        }
+        if (await uploadOne(file)) slots -= 1;
+      }
+    } finally {
+      setUploading(false);
+      refreshUsage();
+    }
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragging(false);
+    if (mode !== "sandbox") setMode("sandbox");
+    upload(e.dataTransfer.files);
   }
 
   useEffect(() => {
@@ -277,7 +305,32 @@ export default function Chat() {
   }
 
   return (
-    <main className="mx-auto flex h-dvh max-w-3xl flex-col px-4 font-mono">
+    <main
+      className="relative mx-auto flex h-dvh max-w-3xl flex-col px-4 font-mono"
+      onDragEnter={(e) => {
+        if (mode !== "sandbox" || !e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current += 1;
+        setDragging(true);
+      }}
+      onDragOver={(e) => {
+        if (mode === "sandbox" && e.dataTransfer.types.includes("Files"))
+          e.preventDefault();
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (dragDepth.current === 0) setDragging(false);
+      }}
+      onDrop={onDrop}
+    >
+      {dragging && mode === "sandbox" && (
+        <div className="pointer-events-none absolute inset-2 z-30 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-vermilion bg-paper/90">
+          <span className="dotted-label text-vermilion">DROP.TO.INGEST</span>
+          <span className="text-xs text-muted">
+            markdown · pdf · docx · html · txt — up to your remaining slots
+          </span>
+        </div>
+      )}
       {/* masthead */}
       <header className="border-b-2 border-ink pb-2 pt-4">
         <div className="flex items-end justify-between">
@@ -420,7 +473,8 @@ export default function Chat() {
                   UPLOAD.FIRST.DOCUMENT
                 </label>
                 <p className="mt-4 text-xs leading-relaxed text-muted">
-                  markdown, pdf, docx, html, or plain text.
+                  markdown, pdf, docx, html, or plain text — drag several in
+                  at once.
                   <br />
                   the chat unlocks after your first document lands.
                 </p>
@@ -504,13 +558,14 @@ export default function Chat() {
             ref={fileRef}
             type="file"
             accept={ACCEPT}
+            multiple
             className="sr-only"
             onChange={(e) => {
-              // grab the File before clearing: e.target.files is a live
-              // list and resetting the input empties it mid-upload
-              const file = e.target.files?.[0];
+              // copy the list before clearing: e.target.files is live and
+              // resetting the input empties it mid-upload
+              const files = e.target.files ? Array.from(e.target.files) : [];
               e.target.value = "";
-              upload(file);
+              upload(files);
             }}
           />
           {mode === "sandbox" && (
@@ -522,7 +577,7 @@ export default function Chat() {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
-              title="Upload to your sandbox — 10 documents, 20 pages each"
+              title="Upload to your sandbox — 10 documents, 20 pages each. Or drag files in."
               className="dotted-label flex cursor-pointer items-center border border-ink px-3 text-ink hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
             >
               +DOC
@@ -534,7 +589,8 @@ export default function Chat() {
             onKeyDown={(e) => e.key === "Enter" && !sandboxEmpty && ask()}
             placeholder={
               busy ? "RETRIEVING…"
-                : sandboxEmpty ? "upload a document to unlock the chat…"
+                : uploading ? "INGESTING…"
+                : sandboxEmpty ? "upload or drag in a document to unlock the chat…"
                 : mode === "playground" ? "ask 512,000 documents anything…"
                 : "ask your documents…"
             }
