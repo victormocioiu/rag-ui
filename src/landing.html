@@ -231,6 +231,12 @@ a:hover { color: var(--brand-light); }
   max-width: 820px;
 }
 
+.hero-tokens a {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.hero-tokens a:hover { color: var(--accent); }
 .hero-tokens {
   display: flex;
   flex-wrap: wrap;
@@ -327,6 +333,7 @@ section { margin-bottom: 72px; }
 .gallery-frame {
   grid-column: 1 / -1;
   position: relative;
+  aspect-ratio: 3 / 2;
   background: var(--shot-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -373,7 +380,6 @@ section { margin-bottom: 72px; }
 .gallery-panel.is-active {
   opacity: 1;
   visibility: visible;
-  position: relative;
   z-index: 2;
   transform: translate3d(0, 0, 0) scale(1);
 }
@@ -388,7 +394,8 @@ section { margin-bottom: 72px; }
 }
 .gallery-panel img {
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
   display: block;
 }
 
@@ -920,7 +927,7 @@ footer.foot {
   <!-- ============ Hero ============ -->
   <header class="hero">
     <div class="eyebrow">
-      <span>SELF.HOSTED.RAG · <a class="version-link" href="https://github.com/victormocioiu/rag-api/blob/main/TASKS.md">session 4</a></span>
+      <span>SELF.HOSTED.RAG</span>
       <span class="hero-links">
         
         <a href="https://github.com/victormocioiu/rag-api" target="_blank" rel="noopener">GitHub</a>
@@ -934,7 +941,7 @@ footer.foot {
 
     <div class="hero-tokens">
       
-      <span><b>69.7</b> doc recall — 6th of 14</span>
+      <span><b>69.7</b> <a href="https://huggingface.co/spaces/onyx-dot-app/EnterpriseRAG-Bench-Leaderboard" target="_blank" rel="noopener">doc recall — 6th of 14 on the public leaderboard</a></span>
       <span><b>512K</b> docs benchmarked</span>
       <span><b>88ms</b> BM25 at 2M chunks</span>
       <span><b>€116</b> per month, all in</span>
@@ -1082,7 +1089,7 @@ footer.foot {
       </div>
       <div class="faq-pair">
         <dt>How good is it, honestly?</dt>
-        <dd>Judged by the benchmark's own harness: document recall 69.7 — 6th of 14, ahead of Azure and Vertex. Overall answer quality 7th… not first, and we say so out loud. The full per-category tables are in the repo.</dd>
+        <dd>Judged by the benchmark's own harness: document recall 69.7 — 6th of 14, ahead of Azure and Vertex. Overall answer quality 7th… not first, and we say so out loud. The full per-category tables are in the repo, and the <a href="https://huggingface.co/spaces/onyx-dot-app/EnterpriseRAG-Bench-Leaderboard" target="_blank" rel="noopener">live leaderboard is on Hugging Face</a>.</dd>
       </div>
       <div class="faq-pair">
         <dt>Why should I trust these numbers?</dt>
@@ -1111,7 +1118,7 @@ footer.foot {
         
         <a href="https://github.com/victormocioiu/rag-api" target="_blank" rel="noopener">GitHub</a> &middot;
         <a href="https://github.com/victormocioiu/rag-api/tree/main/docs" target="_blank" rel="noopener">Benchmarks</a> &middot;
-        <a href="https://edka.io" target="_blank" rel="noopener">Runs on edka</a>
+        <a href="https://edka.io" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;">Runs on <img src="./assets/edka-logo.png" alt="" width="14" height="14" style="vertical-align:-2px;">edka</a>
 
       </div>
       <p class="ethos">Every number on this page has a benchmark behind it, and the negative results are published next to the wins. We log visits (IP, browser, country) to understand our audience — details in the repo, opt-out via any content blocker we deliberately don't fight.</p>
