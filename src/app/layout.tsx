@@ -40,7 +40,7 @@ export default function RootLayout({
           defer
           src={`${process.env.NEXT_PUBLIC_UMAMI_URL ?? "/u"}/script.js`}
           data-website-id={process.env.NEXT_PUBLIC_UMAMI_ID
-            ?? "be227628-8f36-4f79-adcd-f922b8333a34"}
+            ?? "8dbda1a1-27d8-4620-9637-210d8573ba3e"}
         />
       </body>
     </html>
