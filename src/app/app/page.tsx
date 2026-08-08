@@ -450,7 +450,12 @@ export default function Chat() {
                     : "border-hairline border-l-4 border-l-pressa shadow-[3px_3px_0_0_#e2e2e2]"
                 }`}
               >
-                {turn.text || (busy && i === turns.length - 1 ? "▮" : "")}
+                {turn.text ||
+                  (busy && i === turns.length - 1
+                    ? rerank
+                      ? "▮ cross-encoder is reading 50 candidates… ~15s, quality costs latency"
+                      : "▮"
+                    : "")}
               </div>
               {turn.sources && turn.sources.length > 0 && (
                 <details className="mt-1.5">
