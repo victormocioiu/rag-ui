@@ -15,7 +15,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "hRAG — WELTSCHAU.DER.DOKUMENTE",
+  title: "hRAG — ask 512,000 documents",
   description:
     "Hybrid retrieval over 512,000 documents — Postgres, BM25, vectors, a reranker, and receipts for every number.",
   manifest: "/manifest.json",
