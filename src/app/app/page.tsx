@@ -173,9 +173,8 @@ export default function Chat() {
     });
   }
 
-  async function upload(files: FileList | null) {
-    if (!files?.length) return;
-    const file = files[0];
+  async function upload(file: File | undefined) {
+    if (!file) return;
     const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
     if (!ACCEPT.split(",").includes(ext)) {
       rejectUpload(file.name,
@@ -493,8 +492,11 @@ export default function Chat() {
             accept={ACCEPT}
             hidden
             onChange={(e) => {
-              upload(e.target.files);
+              // grab the File before clearing: e.target.files is a live
+              // list and resetting the input empties it mid-upload
+              const file = e.target.files?.[0];
               e.target.value = "";
+              upload(file);
             }}
           />
           <button
