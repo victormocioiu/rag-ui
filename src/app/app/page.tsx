@@ -39,7 +39,7 @@ const MODELS = [
 export default function Chat() {
   const [mode, setMode] = useState<Mode>("playground");
   const [model, setModel] = useState("");
-  const [rerank, setRerank] = useState(true);
+  const [rerank, setRerank] = useState(false);
   const [histories, setHistories] = useState<Record<Mode, Turn[]>>({
     playground: [],
     sandbox: [],
