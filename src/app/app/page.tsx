@@ -410,12 +410,15 @@ export default function Chat() {
               </div>
             ) : sandboxEmpty ? (
               <div className="mt-5">
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="dotted-label border-2 border-vermilion px-6 py-3 text-vermilion hover:bg-vermilion hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
+                <label
+                  htmlFor="doc-upload"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
+                  className="dotted-label inline-block cursor-pointer border-2 border-vermilion px-6 py-3 text-vermilion hover:bg-vermilion hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
                 >
                   UPLOAD.FIRST.DOCUMENT
-                </button>
+                </label>
                 <p className="mt-4 text-xs leading-relaxed text-muted">
                   markdown, pdf, docx, html, or plain text.
                   <br />
@@ -497,10 +500,11 @@ export default function Chat() {
       <footer className="border-t-2 border-ink py-3">
         <div className="flex gap-2">
           <input
+            id="doc-upload"
             ref={fileRef}
             type="file"
             accept={ACCEPT}
-            hidden
+            className="sr-only"
             onChange={(e) => {
               // grab the File before clearing: e.target.files is a live
               // list and resetting the input empties it mid-upload
@@ -510,13 +514,19 @@ export default function Chat() {
             }}
           />
           {mode === "sandbox" && (
-            <button
-              onClick={() => fileRef.current?.click()}
+            /* a real <label> so the browser itself opens the picker --
+               password-manager extensions swallow programmatic .click()
+               on file inputs (measured: 1Password, Chrome, 2026-08-08) */
+            <label
+              htmlFor="doc-upload"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
               title="Upload to your sandbox — 10 documents, 20 pages each"
-              className="dotted-label border border-ink px-3 text-ink hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
+              className="dotted-label flex cursor-pointer items-center border border-ink px-3 text-ink hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
             >
               +DOC
-            </button>
+            </label>
           )}
           <input
             value={input}
