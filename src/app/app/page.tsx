@@ -155,9 +155,14 @@ export default function Chat() {
         }
       }
     } catch (err) {
+      let reason = err instanceof Error ? err.message : String(err);
+      if (reason.includes("<") || reason.length > 200) {
+        // gateway error pages are HTML novels; nobody reads those in a chat
+        reason = "the gateway gave up mid-request";
+      }
       patchLast(m, () => ({
         role: "assistant",
-        text: `something interrupted the stream (${err instanceof Error ? err.message : String(err)}). ask again — retrieval is stateless.`,
+        text: `something interrupted the stream (${reason}). ask again — retrieval is stateless.`,
       }));
     } finally {
       setBusy(false);
