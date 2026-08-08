@@ -225,9 +225,7 @@ export default function Chat() {
   const tokensLeft = usage?.limits.tokens_per_day
     ? Math.max(0, usage.limits.tokens_per_day - usage.tokens_today)
     : null;
-  const pagesLeft = usage
-    ? Math.max(0, usage.limits.docs * usage.limits.pages_per_doc - usage.pages)
-    : null;
+
 
   if (user === null) {
     return (
@@ -316,7 +314,7 @@ export default function Chat() {
       </header>
 
       {/* controls rail */}
-      <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-hairline py-2">
+      <nav className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-hairline py-2">
         <button
           onClick={() => setMode("playground")}
           className={`dotted-label border-b-2 pb-0.5 ${
@@ -345,8 +343,9 @@ export default function Chat() {
         </button>
         {usage && (
           <span className="dotted-label hidden text-[0.55rem] text-muted md:inline">
-            {pagesLeft} PAGES LEFT
-            {tokensLeft !== null && ` · ${Math.round(tokensLeft / 1000)}K TOKENS TODAY`}
+            {usage.pages} {usage.pages === 1 ? "PAGE" : "PAGES"} USED
+            {tokensLeft !== null &&
+              ` · ${Math.round(tokensLeft / 1000)}K TOKENS LEFT TODAY`}
           </span>
         )}
         <div className="ml-auto flex items-center gap-3">
