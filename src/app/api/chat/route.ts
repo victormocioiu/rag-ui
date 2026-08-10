@@ -1,28 +1,39 @@
 // SSE passthrough to rag-api /chat. The browser never sees tenant
-// headers or internal URLs; this route is the only door. A session is
-// required for BOTH modes: retrieval may hit the shared playground
-// corpus, but the tokens always bill the asking user's own budget --
-// which also means anonymous scripts get 401, not a shared free pool.
+// headers or internal URLs; this route is the only door. The playground
+// (benchmark corpus) is open to everyone -- no login -- and bills a
+// shared anon tenant. The private sandbox requires a session.
 import { NextRequest } from "next/server";
-import { PLAYGROUND_TENANT, ensureTenant, resolveTenant } from "@/lib/tenant";
+import {
+  ANON_BILLING_TENANT,
+  PLAYGROUND_TENANT,
+  ensureTenant,
+  resolveTenant,
+} from "@/lib/tenant";
 import { track } from "@/lib/track";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const user = await resolveTenant("sandbox");
-  if (!user) return new Response("sign in first", { status: 401 });
-  await ensureTenant(user.tenant);
-  const retrieval =
-    (body.mode ?? "playground") === "playground" ? PLAYGROUND_TENANT : user.tenant;
+  const isPlayground = (body.mode ?? "playground") === "playground";
+  const user = await resolveTenant("sandbox"); // null when anonymous
+
+  if (!isPlayground && !user) {
+    return new Response("sign in to use your sandbox", { status: 401 });
+  }
+
+  const retrieval = isPlayground ? PLAYGROUND_TENANT : user!.tenant;
+  const billing = isPlayground ? ANON_BILLING_TENANT : user!.tenant;
+  await ensureTenant(billing);
+
   track(request, "ask", { mode: body.mode, model: body.model ?? "default",
-                          rerank: !!body.rerank }, undefined, user.tenant);
+                          rerank: !!body.rerank, anon: !user },
+        undefined, user?.tenant ?? ANON_BILLING_TENANT);
 
   const upstream = await fetch(`${process.env.RAG_API_URL}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-tenant-slug": retrieval,
-      "x-billing-tenant-slug": user.tenant,
+      "x-billing-tenant-slug": billing,
     },
     body: JSON.stringify({
       query: body.query,

@@ -259,62 +259,34 @@ export default function Chat() {
     : null;
 
 
-  if (user === null) {
-    return (
-      <main className="mx-auto flex h-dvh max-w-md flex-col items-center justify-center px-6 text-center font-mono">
-        <div className="relative mb-8 h-32 w-32" aria-hidden>
-          <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-ink" />
-          <div className="absolute left-1/2 top-0 h-20 w-2.5 -translate-x-[150%] bg-vermilion" />
-          <div className="absolute bottom-0 left-1/2 h-20 w-2.5 translate-x-[60%] bg-pressa" />
-        </div>
-        <h1 className="font-display text-4xl">hRAG</h1>
-        <div className="mt-3 rotate-[-3deg] bg-pressa px-3 py-1.5">
-          <span className="dotted-label text-white">SIGN.IN.TO.ASK — 512,000 DOCUMENTS</span>
-        </div>
-        <p className="mt-5 text-xs leading-relaxed text-muted">
-          One click. Your sandbox gets 10 documents, 20 pages each, and a
-          daily token budget — the meters stay visible the whole time.
-        </p>
-        <div className="mt-6 flex w-full flex-col gap-2">
-          <button
-            onClick={() => authClient.signIn.social({ provider: "google", callbackURL: "/app" })}
-            className="dotted-label border-2 border-ink py-3 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
-          >
-            CONTINUE.WITH.GOOGLE
-          </button>
-          <button
-            onClick={() => authClient.signIn.social({ provider: "github", callbackURL: "/app" })}
-            className="dotted-label border-2 border-ink py-3 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
-          >
-            CONTINUE.WITH.GITHUB
-          </button>
-        </div>
-        <a
-          href="https://edka.io"
-          target="_blank"
-          rel="noreferrer"
-          className="dotted-label mt-6 flex items-center gap-1.5 text-[0.55rem] text-muted hover:text-ink"
-        >
-          RUNS.ON
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/edka-logo.png" alt="edka" className="h-3.5 w-3.5" />
-          EDKA.IO
-        </a>
-      </main>
-    );
-  }
+  const signInButtons = (
+    <div className="flex w-full max-w-xs flex-col gap-2">
+      <button
+        onClick={() => authClient.signIn.social({ provider: "google", callbackURL: "/app" })}
+        className="dotted-label border-2 border-ink py-3 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
+      >
+        CONTINUE.WITH.GOOGLE
+      </button>
+      <button
+        onClick={() => authClient.signIn.social({ provider: "github", callbackURL: "/app" })}
+        className="dotted-label border-2 border-ink py-3 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-pressa"
+      >
+        CONTINUE.WITH.GITHUB
+      </button>
+    </div>
+  );
 
   return (
     <main
       className="relative mx-auto flex h-dvh max-w-3xl flex-col px-4 font-mono"
       onDragEnter={(e) => {
-        if (mode !== "sandbox" || !e.dataTransfer.types.includes("Files")) return;
+        if (mode !== "sandbox" || !user || !e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();
         dragDepth.current += 1;
         setDragging(true);
       }}
       onDragOver={(e) => {
-        if (mode === "sandbox" && e.dataTransfer.types.includes("Files"))
+        if (mode === "sandbox" && user && e.dataTransfer.types.includes("Files"))
           e.preventDefault();
       }}
       onDragLeave={() => {
@@ -366,6 +338,15 @@ export default function Chat() {
                 SIGN.OUT
               </button>
             )}
+            {user === null && (
+              <button
+                onClick={() => setMode("sandbox")}
+                className="dotted-label mb-0.5 border-2 border-ink px-2 py-0.5 text-ink hover:bg-ink hover:text-paper"
+                title="sign in for your own private sandbox"
+              >
+                SIGN.IN
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -396,7 +377,7 @@ export default function Chat() {
               : "border-transparent text-muted hover:text-ink"
           }`}
         >
-          MY.SANDBOX — {usage ? `${usage.docs}/${usage.limits.docs}` : `${uploads}/10`}
+          MY.SANDBOX{user === null ? " · SIGN IN" : ` — ${usage ? `${usage.docs}/${usage.limits.docs}` : `${uploads}/10`}`}
         </button>
         {usage && (
           <span className="dotted-label hidden text-[0.55rem] text-muted md:inline">
@@ -438,18 +419,22 @@ export default function Chat() {
               <div className="absolute left-1/2 top-0 h-24 w-3 -translate-x-[150%] bg-vermilion" />
               <div className="absolute bottom-0 left-1/2 h-24 w-3 translate-x-[60%] bg-pressa" />
             </div>
-            <div className={`rotate-[-4deg] px-3 py-1.5 ${sandboxEmpty ? "bg-vermilion" : "bg-pressa"}`}>
+            <div className={`rotate-[-4deg] px-3 py-1.5 ${mode === "sandbox" ? "bg-vermilion" : "bg-pressa"}`}>
               <span className="dotted-label text-white">
                 {mode === "playground"
                   ? "ASK.THE.CORPUS — 512,000 DOCUMENTS"
-                  : sandboxEmpty
-                    ? "UPLOAD.TO.ASK — 10 DOCS, 20 PAGES EACH"
-                    : "ASK.YOUR.DOCUMENTS"}
+                  : user === null
+                    ? "SIGN.IN.FOR.YOUR.SANDBOX"
+                    : sandboxEmpty
+                      ? "UPLOAD.TO.ASK — 10 DOCS, 20 PAGES EACH"
+                      : "ASK.YOUR.DOCUMENTS"}
               </span>
             </div>
             {mode === "playground" ? (
               <div className="mt-5 flex flex-col items-center gap-2">
-                <span className="dotted-label text-[0.55rem] text-muted">TRY.ONE</span>
+                <span className="dotted-label text-[0.55rem] text-muted">
+                  TRY.ONE — NO LOGIN NEEDED
+                </span>
                 {SUGGESTIONS.map((q) => (
                   <button
                     key={q}
@@ -460,6 +445,15 @@ export default function Chat() {
                     {q}
                   </button>
                 ))}
+              </div>
+            ) : user === null ? (
+              <div className="mt-5 flex flex-col items-center gap-4">
+                <p className="max-w-xs text-xs leading-relaxed text-muted">
+                  The playground is open to everyone. Sign in to get your own
+                  private sandbox — 10 documents, 20 pages each, isolated by
+                  row-level security, with live quota meters.
+                </p>
+                {signInButtons}
               </div>
             ) : sandboxEmpty ? (
               <div className="mt-5">
@@ -568,7 +562,7 @@ export default function Chat() {
               upload(files);
             }}
           />
-          {mode === "sandbox" && (
+          {mode === "sandbox" && user && (
             /* a real <label> so the browser itself opens the picker --
                password-manager extensions swallow programmatic .click()
                on file inputs (measured: 1Password, Chrome, 2026-08-08) */
@@ -590,6 +584,7 @@ export default function Chat() {
             placeholder={
               busy ? "RETRIEVING…"
                 : uploading ? "INGESTING…"
+                : mode === "sandbox" && user === null ? "sign in to chat your own documents…"
                 : sandboxEmpty ? "upload or drag in a document to unlock the chat…"
                 : mode === "playground" ? "ask 512,000 documents anything…"
                 : "ask your documents…"

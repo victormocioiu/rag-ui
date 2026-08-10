@@ -6,6 +6,10 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 
 export const PLAYGROUND_TENANT = "erb-v1";
+// anonymous + signed-in playground chats all bill here: the public
+// demo is on the house, capped by the daily budget with the free
+// model as backstop. Personal budgets apply only to the sandbox.
+export const ANON_BILLING_TENANT = "anon-playground";
 const API = process.env.RAG_API_URL ?? "";
 
 export async function resolveTenant(
