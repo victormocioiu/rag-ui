@@ -10,8 +10,16 @@ import {
   resolveTenant,
 } from "@/lib/tenant";
 import { track } from "@/lib/track";
+import { clientIp, rateLimit } from "@/lib/ratelimit";
 
 export async function POST(request: NextRequest) {
+  // 15 questions/min/IP: generous for a human (rerank makes each ~17s),
+  // brutal for a script draining the shared anon token pool.
+  if (!rateLimit(clientIp(request), 15)) {
+    return new Response("slow down — too many questions this minute", {
+      status: 429,
+    });
+  }
   const body = await request.json();
   const isPlayground = (body.mode ?? "playground") === "playground";
   const user = await resolveTenant("sandbox"); // null when anonymous

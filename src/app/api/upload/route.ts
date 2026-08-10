@@ -5,8 +5,14 @@
 import { NextRequest } from "next/server";
 import { ensureTenant, resolveTenant } from "@/lib/tenant";
 import { track } from "@/lib/track";
+import { clientIp, rateLimit } from "@/lib/ratelimit";
 
 export async function POST(request: NextRequest) {
+  if (!rateLimit(clientIp(request), 20)) {
+    return new Response("slow down — too many uploads this minute", {
+      status: 429,
+    });
+  }
   const resolved = await resolveTenant("sandbox");
   if (!resolved) return new Response("sign in first", { status: 401 });
   await ensureTenant(resolved.tenant);
